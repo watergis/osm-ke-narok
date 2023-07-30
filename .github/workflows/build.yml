@@ -1,0 +1,64 @@
+name: "Build & deploy vector tiles"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+
+env:
+  REGION: africa
+  AREA: kenya
+  BOUNDS: 34.58,-2.121,36.595,-0.419
+  BOUNDS_NAME: narok
+  TILEMAKER_IMAGE: ghcr.io/jinigarashi/tilemaker:master
+  PMTILES_IMAGE: ghcr.io/protomaps/go-pmtiles:main
+
+jobs:
+
+  tilemaker-build:
+    name: Generate vector tiles by tilemaker
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Download PBF file
+      run: |
+        mkdir data
+        curl -L http://download.geofabrik.de/${{ env.REGION }}/${{ env.AREA }}-latest.osm.pbf -o ./data/${{ env.AREA }}.osm.pbf
+
+    - name: pull docker image
+      run: |
+        docker pull ${{ env.TILEMAKER_IMAGE }}
+        docker pull ${{ env.PMTILES_IMAGE }}
+
+    - name: Install osmium-tool
+      run: |
+        apt-get install osmium-tool
+
+    - name: Extract data by bounds
+      run: |
+        osmium extract --bbox=${{ env.BOUNDS }} --set-bounds --strategy=smart ./data/${{ env.AREA }}.osm.pbf  --output ./data/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.osm.pbf
+
+    - name: Build openmaptiles-compatible mbtiles files of given area
+      run: docker run -v $(pwd)/data:/srv ${{ env.TILEMAKER_IMAGE }} --input=/srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.osm.pbf --output=/srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.mbtiles
+
+    - name: Convert mbtiles to pmtiles
+      run: |
+        docker run -v $(pwd)/data:/srv ${{ env.PMTILES_IMAGE }} convert /srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.mbtiles /srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.pmtiles --tmpdir=/workspace
+
+    - name: clean deploy folder
+      run: |
+        rm ./data/${{ env.AREA }}.osm.pbf
+        rm ./data/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.osm.pbf
+        rm ./data/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.mbtiles
+
+    - name: deploy to gh-pages
+      uses: JamesIves/github-pages-deploy-action@v4.4.3
+      if: ${{ github.ref == 'refs/heads/main' }}
+      with:
+        branch: gh-pages # The branch the action should deploy to.
+        folder: data # The folder the action should deploy.
