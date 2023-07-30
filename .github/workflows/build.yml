@@ -37,7 +37,7 @@ jobs:
 
     - name: Install osmium-tool
       run: |
-        apt-get install osmium-tool
+        sudo apt-get install osmium-tool
 
     - name: Extract data by bounds
       run: |
