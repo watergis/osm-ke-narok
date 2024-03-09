@@ -48,7 +48,7 @@ jobs:
 
     - name: Convert mbtiles to pmtiles
       run: |
-        docker run -v $(pwd)/data:/srv ${{ env.PMTILES_IMAGE }} convert /srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.mbtiles /srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.pmtiles --tmpdir=/workspace
+        docker run -v $(pwd)/data:/srv ${{ env.PMTILES_IMAGE }} convert /srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.mbtiles /srv/${{ env.AREA }}-${{ env.BOUNDS_NAME }}.pmtiles --tmpdir=/srv
 
     - name: clean deploy folder
       run: |
